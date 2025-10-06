@@ -78,9 +78,9 @@ log-likelihood, proportional simplification. What is the MLE? Also find a suffic
 # Bayes Rule for Bayesian Statistics
 
 ## Bayes Rule 
-\[
-P(A\,|\,B)=\frac{P(B\,|\,A)\,P(A)}{P(B)}
-\]
+
+$P(A\,|\,B)=\frac{P(B\,|\,A)\,P(A)}{P(B)}$
+
 
 \begin{itemize}
   \item $P(A\,|\,B)$ is the conditional probability of $A$ given $B$.
@@ -89,11 +89,12 @@ P(A\,|\,B)=\frac{P(B\,|\,A)\,P(A)}{P(B)}
 \end{itemize}
 
 ## Bayes Rule for Bayesian Statistics
-\[
-P(\theta \mid y)=\frac{P(y \mid \theta)\,P(\theta)}{P(y)} = \frac{P(y \mid \theta)\,P(\theta)}{\displaystyle\int_{\Theta} p(y \mid \tilde{\theta})\,p(\tilde{\theta})\,d\tilde{\theta}}
+
+$$P(\theta \mid y)=\frac{P(y \mid \theta)\,P(\theta)}{P(y)} = \frac{P(y \mid \theta)\,P(\theta)}{\displaystyle\int_{\Theta} p(y \mid \tilde{\theta})\,p(\tilde{\theta})\,d\tilde{\theta}}
 \propto
 P(y \mid \theta)\,P(\theta)
-\]
+$$
+
 
 \begin{itemize}
   \item $P(\theta \mid y)$ is the posterior distribution.
