@@ -1,0 +1,206 @@
+---
+title: "Lab 5, Fall 2025"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Normal Normal Conjugacy
+First we will go through the proof of Normal-Normal conjugacy in class.
+$$ y \sim \mathcal{N}(\mu, \sigma^2), \;\sigma^2 \textrm{ known} $$
+$$ \mu \sim \mathcal{N}(\theta, \tau^2) $$
+
+For more details the proof of is also written clearly in chapter 5 of Bayes Rules book. They prove that the posterior distribution can be written in the form:
+$$
+p(\mu \mid y_{1},...,y_{n}) \sim N\left(\frac{\theta \sigma^2+n\bar{y}\tau^2}{n\tau^2+\sigma^2},\frac{\tau^2\sigma^2}{n\tau^2+\sigma^2} \right)
+$$
+
+With some rearranging we can also write it as:
+$$
+p(\mu \mid y_{1},...,y_{n}) \sim N\left(\frac{\frac{1}{\tau^2}\theta + \frac{n}{\sigma^2} \bar{y}}{\frac{1}{\tau^2}+\frac{n}{\sigma^2}}, \frac{1}{\frac{1}{\tau^2} + \frac{n}{\sigma^2}} \right)
+$$
+
+
+## Properties of the Posterior Mean Estimator
+
+### Writing Posterior Mean as weighted average of MLE and prior mean
+
+$$
+\begin{aligned}
+\mathbb{E}[\mu \mid y_1, \ldots, y_n]
+&= \frac{\theta \sigma^2 + n \bar{y} \tau^2}{n \tau^2 + \sigma^2}]\\
+&= \left( \frac{n \tau^2}{n \tau^2 + \sigma^2} \right) \bar{y}
+  + \left( \frac{\sigma^2}{n \tau^2 + \sigma^2} \right) \theta \\
+&= w\, \bar{y} + (1 - w)\, \theta,
+\quad \text{where } w = \frac{n \tau^2}{n \tau^2 + \sigma^2}
+\end{aligned}
+$$
+
+### Is $E[\mu \mid \mathbf{y}]$ Biased?
+
+Recall that the bias of an estimator is defined as
+
+$$
+\text{Bias}(\hat{\mu}) = E[\hat{\mu}] - \mu
+$$
+
+First, we compute
+
+$$
+E\!\left[E[\mu \mid \mathbf{y}]\right]
+= E\!\left[  w \bar{y} + (1 - w)\, \theta \right] = w E\!\left[  \bar{y}\right] + (1 - w)\, \theta = w \mu + (1 - w)\, \theta
+$$
+
+Since $E[\bar{y}] = \mu$
+
+Then,
+$$
+E[\mu \mid \mathbf{y}] - \mu =  w \mu + (1 - w)\, \theta - \mu = (1 - w)(\theta - \mu) 
+= \frac{\sigma^2}{n \tau^2 + \sigma^2}(\theta - \mu)
+$$
+
+Because $\theta \neq \mu$ and $\sigma^2 > 0$, the bias term does not vanish, implying that the Bayesian estimator is biased.
+
+
+In contrast, the **MLE estimator** $\hat{\mu}_{\text{MLE}} = \bar{y}$ is unbiased since
+
+$$
+E[\bar{y}] = \mu
+$$
+
+
+### Variance of $E[\mu \mid \mathbf{y}]$
+
+Since $\theta$ is a constant and $w$ depends only on known parameters,
+$$
+\text{Var}(E[\mu \mid \mathbf{y}]) = \text{Var}\!\left(w\,\bar{y} + (1 - w)\theta\right) = w^2\,\text{Var}(\bar{y})
+$$
+
+Because $\text{Var}(\bar{y}) = \sigma^2 / n$, we have
+$$
+\text{Var}(E[\mu \mid \mathbf{y}]) = w^2 \frac{\sigma^2}{n}
+= \left(\frac{n\tau^2}{n\tau^2 + \sigma^2}\right)^2 \frac{\sigma^2}{n}
+= \frac{n\tau^4\sigma^2}{(n\tau^2 + \sigma^2)^2}
+$$
+
+For comparison, the variance of the MLE is
+$$
+\text{Var}(\hat{\mu}_{\text{MLE}}) = \frac{\sigma^2}{n}
+$$
+
+Since $0 < w < 1$ (for $\tau^2 > 0$), it follows that
+$$
+\text{Var}(E[\mu \mid \mathbf{y}]) = w^2 \frac{\sigma^2}{n} < \frac{\sigma^2}{n},
+$$
+so the Bayesian estimator achieves lower variance by shrinking toward the prior mean $\theta$.
+
+
+### Mean Squared Error (MSE)
+
+The mean squared error (MSE) is given by
+
+$$
+\text{MSE}(E[\mu \mid \mathbf{y}]) = E\!\left[(E[\mu \mid \mathbf{y}] - \mu)^2\right]
+= \text{Var}(E[\mu \mid \mathbf{y}]) + [\text{Bias}(E[\mu \mid \mathbf{y}])]^2
+$$
+
+Plugging in the expressions above:
+
+$$
+\text{MSE}(E[\mu \mid \mathbf{y}])
+= \frac{n \tau^4 \sigma^2}{(n \tau^2 + \sigma^2)^2}
++ \frac{\sigma^4 (\theta - \mu)^2}{(n \tau^2 + \sigma^2)^2} = \frac{\sigma^2 [n \tau^4 + \sigma^2 (\theta - \mu)^2]}{(n \tau^2 + \sigma^2)^2}
+$$
+
+The MSE depends on $\mu$ itself, unlike the MLE’s MSE, which is constant:
+
+$$
+\text{MSE}(\hat{\mu}_{\text{MLE}}) = \frac{\sigma^2}{n}
+$$
+
+
+### Numerical Example
+
+Let $\sigma^2 = \tau^2 = 1$, $n = 1$, and $\theta = 0$.  
+Then
+
+$$
+\text{MSE}(E[\mu \mid \mathbf{y}]) = \frac{1 \cdot [1 + (\theta - \mu)^2]}{(1 + 1)^2}
+= \frac{\mu^2 + 1}{4}
+$$
+
+Meanwhile, for the MLE, $\text{MSE}(\hat{\mu}_{\text{MLE}}) = 1$.
+
+If we plot $\text{MSE}(E[\mu \mid \mathbf{y}])$ as a function of $\mu$, we obtain a parabola:
+
+```{r}
+mse_bayes <- function(mu){
+  return((mu^2 + 1)/4)
+}
+mu <- (0:100)/10 - 5
+plot(mu, mse_bayes(mu), type = "l")
+abline(h = 1, col = "red")
+```
+
+
+
+## Quantile Based Credible interval
+
+Note that for a Normal distribution with standard deviation $\sigma$, 95% of the mass is within $\pm 1.96 \sigma$ of the mean, the credible interval for the posterior $p(\mu|y_1, ..., y_n)$ is the interval:
+$$
+\Big{(}\frac{\theta \sigma^2+n\bar{y}\tau^2}{n\tau^2+\sigma^2}-1.96 \sqrt{\frac{1}{\frac{1}{\tau^2} + \frac{n}{\sigma^2}}}, \frac{\theta \sigma^2+n\bar{y}\tau^2}{n\tau^2+\sigma^2} + 1.96 \sqrt{\frac{1}{\frac{1}{\tau^2} + \frac{n}{\sigma^2}}} \Big{)}
+$$
+
+## Example
+(Ex 5.11 from Bayes Rules)
+
+Prof. Abebe and Prof. Morales both recently finished their PhDs and are teaching their first statistics classes at Bayesian University. Their colleagues told them that the average final exam score across all students, $\mu$, varies Normally from year to year with a mean of 80 points and a standard deviation of 4. Further, individual students’ scores Y vary Normally around $\mu$
+with a known standard deviation of 3 points.
+$$\mu \sim N(\theta = 80, \tau^2 = 4^2)$$
+$$Y \sim N(\mu, \sigma^2 = 3^2)$$
+\begin{enumerate}
+  \item Prof. Abebe conducts the final exam and observes that his 32 students scored an average of 86 points. Calculate the posterior mean and variance of $\mu$ using the data from Prof. Abebe’s class.
+$$
+\begin{aligned}
+p(\mu \mid y_{11},...,y_{1n_1}) &\sim N\left(\frac{\frac{1}{\tau^2}\theta + \frac{n_1}{\sigma_1^2} \bar{y_1}}{\frac{1}{\tau^2}+\frac{n_1}{\sigma_1^2}}, \frac{1}{\frac{1}{\tau^2} + \frac{n_1}{\sigma_1^2}} \right) \\
+&\sim N\left(\frac{\frac{1}{4^2}*80 + \frac{32}{3^2} * 86}{\frac{1}{4^2}+\frac{32}{3^2}}, \frac{1}{\frac{1}{4^2} + \frac{32}{3^2}} \right) \\
+&\sim N(85.8964, 0.2764)
+\end{aligned}
+$$
+  \item Prof. Morales conducts the final exam and observes that her 32 students scored an average of 82 points. Calculate the posterior mean and variance of $\mu$ using the data from Prof. Morales’ class.
+$$
+\begin{aligned}
+p(\mu \mid y_{21},...,y_{2n_2}) &\sim N\left(\frac{\frac{1}{\tau^2}\theta + \frac{n_2}{\sigma_2^2} \bar{y_2}}{\frac{1}{\tau^2}+\frac{n_2}{\sigma_2^2}}, \frac{1}{\frac{1}{\tau^2} + \frac{n_2}{\sigma_2^2}} \right) \\
+&\sim N\left(\frac{\frac{1}{4^2}*80 + \frac{32}{3^2} * 82}{\frac{1}{4^2}+\frac{32}{3^2}}, \frac{1}{\frac{1}{4^2} + \frac{32}{3^2}} \right) \\
+&\sim N(81.9655, 0.2764)
+\end{aligned}
+$$
+  \item Next, use Prof. Abebe and Prof. Morales’ combined exams to calculate the posterior mean and variance of $\mu$.
+$$
+\begin{aligned}
+p(\mu \mid y_{11},...,y_{1n_1}, y_{21},...,y_{2n_2}) &\sim N\left(\frac{\frac{1}{\tau^2}\theta + \frac{n}{\sigma^2} \bar{y}}{\frac{1}{\tau^2}+\frac{n}{\sigma^2}}, \frac{1}{\frac{1}{\tau^2} + \frac{n_1}{\sigma^2}} \right) \\
+&\sim N\left(\frac{\frac{1}{4^2}*80 + \frac{32+32}{3^2} * \frac{\sum y_1 + \sum y_2}{32+32}}{\frac{1}{4^2}+\frac{32+32}{3^2}}, \frac{1}{\frac{1}{4^2} + \frac{32+32}{3^2}} \right) \\
+&\sim N\left(\frac{\frac{1}{16}*80 + \frac{64}{9} * \frac{32\bar{y}_1 + 32\bar{y}_2}{64}}{\frac{1}{16}+\frac{64}{9}}, \frac{1}{\frac{1}{16} + \frac{64}{9}} \right) \\
+&\sim N(83.9652, 0.1394)
+\end{aligned}
+$$
+
+\item In the posterior mean, is more weight placed on prior mean or the MLE?
+
+$$
+w = \frac{n \tau^2}{n \tau^2 + \sigma^2} = \frac{64 \times 4^2}{64 \times 4^2 + 3^2} = 0.9913
+$$
+
+\item Now, find the lower and upper bounds of the 95$\%$ quantile-based posterior credible interval for the mean exam score when the classes are combined. 
+
+$$
+\frac{\theta \sigma^2+n\bar{y}\tau^2}{n\tau^2+\sigma^2}-1.96 \sqrt{\frac{1}{\frac{1}{\tau^2} + \frac{n}{\sigma^2}}} = 83.9652 - 1.96 \sqrt{ 0.1394} = 83.23414
+$$
+$$
+\frac{\theta \sigma^2+n\bar{y}\tau^2}{n\tau^2+\sigma^2}+1.96 \sqrt{\frac{1}{\frac{1}{\tau^2} + \frac{n}{\sigma^2}}} = 83.9652 + 1.96 \sqrt{ 0.1394} = 84.69626
+$$
+
+\end{enumerate}
+
