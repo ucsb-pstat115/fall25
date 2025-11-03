@@ -103,4 +103,4 @@ y_B = c(11, 11, 10, 9, 9, 8, 7, 10, 6, 8, 8, 9, 7)
 
 _Type your answer here, replacing this text._
 
-c. When the mean is less than the variance we say that the data is _underdispersed_.  When the mean is more than the variance we say that the data is _overdispersed_.  Do you have any evidence that the data is underdispered? Overdispered?
+c. When the variance is less than expected under the model, we say that the data is _underdispersed_.  When the variance is more than expected under the model, we say that the data is _overdispersed_.  Do you have any evidence that the data is underdispered? Overdispered?
