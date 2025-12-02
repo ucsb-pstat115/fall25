@@ -1,0 +1,314 @@
+---
+title: "Lab 8"
+author: "PSTAT 115, Fall 2025"
+output:
+  pdf_document: default
+  html_document:
+    df_print: paged
+urlcolor: blue
+header-includes:
+ \usepackage{float}
+---
+
+```{r setup, include=FALSE}
+library(knitr)
+knitr::opts_chunk$set(echo=TRUE, 
+                      cache=FALSE,
+                      message = FALSE,
+                      warning = FALSE,
+                      fig.width=5, 
+                      fig.height=5,
+                      fig.align='center',
+                      fig.pos = 'H')
+library(tidyverse)
+library(ggplot2)
+library(rstan)
+# install.packages("cmdstanr", repos = c("https://mc-stan.org/r-packages/", getOption("repos")))
+library(cmdstanr)
+# install_cmdstan()
+library(cmdstanr)
+library(bayesplot)
+library(Rcpp)
+library(jpeg)
+```
+
+
+# Simple linear regression model
+
+The simple linear regression model is: $$y_i=\beta x_i+\alpha+\epsilon_i\ \ \   i=1,\dots,n$$
+
+$\epsilon_i\sim \text{normal}(0,\sigma^2)$ and $\epsilon_i$'s are independent.
+
+This model can be written as $y_i-\beta x_i-\alpha \sim \text{normal}(0,\sigma^2)$ which is equivalent to $y_i \sim \text{normal}(\beta x_i+\alpha,\sigma^2)$. We will use this last expression of the model to code simple linear regression with stan.
+
+Note, our parameters are $\beta,\alpha\ \text{and}\ \sigma$. In frequentist view, we find the likelihood and compute the MLE then mission's complete. But in Bayesian context, we can specify some priors, find the posterior distribution and estimate those parameters with posterior means/medians/modes etc. Of course, the posterior distribution might be complicated and we need to turn to MCMC for help. That's when we would like to use stan to tackle problems.
+
+We code the model in a stan file as follows. Note: in stan, if you don't specify the prior, it will use the improper priors for the unbounded parameters.
+
+```{r, eval=FALSE}
+data {
+  int<lower=0> N;
+  vector[N] x;
+  vector[N] y;
+}
+parameters {
+  real alpha;
+  real beta;
+  real<lower=0> sigma;
+}
+model {
+  y ~ normal(alpha + x*beta, sigma);
+}
+```
+
+ 
+
+ 
+```{r}
+set.seed(123)
+x <- runif(100, 0,5)
+a <- 2
+b <- 0.5
+y <- b*x+a+rnorm(100, mean = 0, sd = 2)
+n <- length(y)
+ggplot(data = data.frame(x=x,y=y))+geom_point(aes(x=x,y=y))+geom_abline(slope = b, intercept = a, col = "red")+theme_bw()
+
+stan_model2 = cmdstan_model("simple_linear_regression.stan")
+stan_fit2 =   stan_model2$sample(
+    data = list(N = n, y = y, x=x),
+    refresh = 0, show_messages=FALSE)
+
+samples <- stan_fit2$draws(format = "df")
+samples
+
+alpha_samples <- samples$alpha
+beta_samples <- samples$beta
+sigma_samples <- samples$sigma
+```
+
+
+Now let's look at the estimates of posterior means.
+
+
+```{r}
+mean(beta_samples)
+mean(alpha_samples)
+mean(sigma_samples)
+```
+
+Let's say if we are interested in the predicted value when x=5, that is $\hat{y} = \alpha+5\beta$. Then we can get samples of this predict value. The sample mean will give us a good estimate of the posterior mean of this predict value at $x=5$.
+
+```{r}
+y_hat <- alpha_samples + 5*beta_samples
+mean(y_hat)
+```
+
+We can also explore the posterior relationship between $\alpha$ and $\beta$. 
+
+```{r}
+ggplot(tibble(alpha=alpha_samples, beta=beta_samples)) + geom_point(aes(x=alpha, y=beta)) + theme_bw()
+```
+
+
+## Making 60% and 90% confidence bands plot for y
+
+```{r}
+xgrid <- seq(0, 5, by=0.1)
+
+xgrid
+
+compute_curve <- function(sample) {
+  alpha <- sample[1]
+  beta <- sample[2]
+  y_values <- alpha + beta*xgrid
+}
+
+res <- apply(cbind(alpha_samples, beta_samples), 1, compute_curve)
+#each col of res is for a set of alpha,beta values
+#each row of res is different y values computed from different sets of alpha beta for a fixed x values.
+quantiles <- apply(res, 1, function(x) quantile(x, c(0.05, 0.20, 0.80, 0.95)))
+
+
+posterior_mean <- rowMeans(res)
+#posterior_med <- apply(res, 1, median)
+tibble(x=xgrid,
+q05=quantiles[1, ],
+q20=quantiles[2, ],
+q80=quantiles[3, ],
+q95=quantiles[4, ],
+mean=posterior_mean) %>%
+ggplot() +
+geom_ribbon(aes(x=xgrid, ymin=q05, ymax=q95), alpha=0.2) +
+geom_ribbon(aes(x=xgrid, ymin=q20, ymax=q80), alpha=0.5) +
+geom_line(aes(x=xgrid, y=posterior_mean), size=1) +
+theme_bw()
+
+```
+
+
+# Hierarchical Modeling 
+
+Hierarchical models greatly expand the flexibility of our modeling toolbox by accommodating hierarchical, or grouped data. Across literature, they can be referred to as multilevel, mixed effects, or random effects models. 
+
+
+##Eight Schools Example
+
+The eight schools problem (Rubin 1981) considers the effectiveness of different SAT coaching programs conducted in parallel at eight schools. It has become a classic problem (Bayesian Data Analysis, Stan) that illustrates the usefulness of hierarchical modeling for sharing information between exchangeable groups.
+
+We compute the average SAT score in those who did take the program minus those who did not take part and find the average difference varies by school. What accounts for these differences?
+
+```{r}
+## data ##
+schools_dat <- list(J = 8, 
+                    y = c(28,  8, -3,  7, -1,  1, 18, 12),
+                    sigma = c(15, 10, 16, 11,  9, 11, 10, 18))
+```
+
+Our options:
+\begin{enumerate}
+  \item Estimate the effect of the program in every school independently: seperate prior for ech school effect (no pooling).
+  \item Assume the effect is the same in each school: combine all of the data (complete pooling).
+  \item A compromise of the 2 options above (partial pooling).
+\end{enumerate}
+
+**Model Specification:**
+
+$$\theta_j \sim N(\mu, \tau^2)$$
+$$y_j \sim N(\theta_j, \sigma_j^2)$$
+
+- $\theta_j$ are the true unknown effects of the program in school j
+
+- $y_j$ is the observed effects of the program in school j
+
+- Add a shared normal prior distribution to $\theta_j$
+
+- Assume the global mean, $\mu$ is also unknown
+
+- $\tau^2$ determines how much weight weight we put on the independent estimate vs the pooled estimate
+
+  - if $\tau^2$ is \textbf{large}, the prior for $\theta_j$ is not very strong: As $\tau^2 \rightarrow \inf$, equivalent to \textbf{no pooling}.
+  - if $\tau^2$ is \textbf{small}, we are assuming apriori that $\theta_j$ are all very close: As $\tau^2 \rightarrow 0$, equivalent to \textbf{complete pooling} model, $\theta_j = \mu$.
+
+Estimate hyperparameter $\mu$ and $\tau$ with no pooling (option 1):
+
+```{r, eval=FALSE}
+data {
+  int<lower=0> J;          // # of schools
+  array[J] real y;              // estimated treatment effects
+  array[J] real<lower=0> sigma; // standard error of effect estimates 
+}
+
+parameters {
+  real theta[J];        // school effect
+  real mu;              // mean for schools
+  real<lower=0> tau;    // variance between schools
+}
+
+model {
+  theta ~ normal(mu, tau);
+  y ~ normal(theta, sigma);
+}
+```
+
+Estimate hyperparameter $\mu$ and $\tau$ with complete pooling (option 2):
+
+```{r, eval=FALSE}
+data {
+  array[J] real y;              // estimated treatment effects
+  array[J] real<lower=0> sigma; // standard error of effect estimates 
+  real<lower=0> sigma[J];  // std err of effect
+}
+
+parameters {
+  real theta;           // school effect
+  real mu;              // mean for schools
+  real<lower=0> tau;    // variance between schools
+}
+
+model {
+  theta ~ normal(mu, tau);
+  y ~ normal(theta, sigma);
+}
+```
+
+
+Estimate hyperparameter $\mu$ and $\tau$ with partial pooling (option 3):
+
+Introduce $\eta$, the unscaled deviation from $\mu$ by school and let:
+$$\theta_j = \mu + \tau * \eta_j,$$
+where $\eta_j \sim N(0, 1)$
+
+Noting that $$\theta_j \mid \mu, \tau \sim N(\mu, \tau^2)$$
+
+```{r, eval = FALSE}
+data {
+  int<lower=0> J;         // number of schools 
+  array[J] real y;              // estimated treatment effects
+  array[J] real<lower=0> sigma; // standard error of effect estimates 
+}
+parameters {
+  real mu;                // population treatment effect
+  real<lower=0> tau;      // standard deviation in treatment effects
+  vector[J] eta;          // unscaled deviation from mu by school
+}
+transformed parameters {
+  vector[J] theta = mu + tau * eta;        // school treatment effects
+}
+model {
+  target += normal_lpdf(eta | 0, 1);       // prior log-density
+  target += normal_lpdf(y | theta, sigma); // log-likelihood
+}
+```
+
+```{r, cache = TRUE}
+library(cmdstanr)
+install_cmdstan()
+stan_model <- cmdstan_model("eight_schools.stan")
+stan_fit <- stan_model$sample(
+    data = schools_dat,
+    refresh = 0, show_messages=FALSE)
+samples <- stan_fit$draws(format = "df")
+head(samples)
+```
+
+Is the training program effective in school j? Find $P(\theta_j>0|y)$
+```{r}
+mean(samples$`theta[1]`>0) # school 1
+mean(samples$`theta[5]`>0) # school 5
+```
+
+On avearge (over all schools) is the training program effective? Find $P(\mu>0|y)$
+```{r}
+mean(samples$mu>0)
+```
+
+
+## Shrinkage plot
+In the Bayesian estimation, shrinkage occurs as a result of hierarchical models. When parameters are modeled as exchangeable and given a proper prior, it induces some amount of shrinkage. Likewise, Bayesian models with non- or weakly-informative priors will produce similar to the MLE. But stronger priors can produce estimate much different estimtes than MLE.
+
+```{r}
+shrinkage_plot <- function(empirical, posterior_mean,
+                           shrink_point=mean(posterior_mean)) {
+  
+  tibble(y=empirical, pm=posterior_mean) %>% 
+    ggplot() + 
+    geom_segment(aes(x=y, xend=pm, y=1, yend=0), linetype="dashed") + 
+    geom_point(aes(x=y, y=1)) + 
+    geom_point(aes(x=pm, y=0)) + 
+    theme_bw(base_size=14) + 
+    geom_vline(xintercept=shrink_point, color="blue", size=1.2) + 
+    ylab("") + xlab("Estimate") + 
+    scale_y_continuous(breaks=c(0, 1), 
+                       labels=c("Posterior Mean", "MLE"), 
+                       limits=c(0,1))
+}
+```
+
+
+```{r}
+theta_post <- colMeans(samples[c(12:19)])
+print(theta_post)
+# shrinkage plot #
+shrinkage_plot(schools_dat$y, theta_post)
+```
+
